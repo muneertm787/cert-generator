@@ -20,7 +20,7 @@ export async function GET(request) {
   const W = meta.width;
   const H = meta.height;
 
-  const fontSize = Math.round(W * 0.055) - 8; // 2pt less than previous (-2), so -4 total
+  const fontSize = Math.round(W * 0.055) - 12; // 2pt less than previous (-2), so -4 total
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
   function escapeXml(str) {
