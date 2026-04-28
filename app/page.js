@@ -21,7 +21,7 @@ export default function Home() {
     if (!nameText.trim()) return;
 
     const nameY = H * NAME_Y_FRACTION;
-    const fontSize = Math.round(W * 0.055) - 12; // 2pt less than previous (which was already -2)
+    const fontSize = Math.round(W * 0.032); // 2pt less than previous (which was already -2)
     ctx.font = `bold ${fontSize}px Consolas, monospace`;
     ctx.textAlign = 'center';
     ctx.globalAlpha = 1;
