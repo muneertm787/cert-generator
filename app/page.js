@@ -8,11 +8,7 @@ export default function Home() {
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
 
-  // Positions (as fraction of image dimensions)
-  // Original name Y was roughly 41% of height.
-  // 1 inch at 96dpi = 96px on a ~794px tall preview canvas → ~12% shift
-  // We push it down by adding ~0.12 to the y fraction.
-  const NAME_Y_FRACTION = 0.535; // adjusted ~1 inch lower than original ~0.415
+  const NAME_Y_FRACTION = 0.535;
 
   function drawCertificate(canvas, img, nameText) {
     const ctx = canvas.getContext('2d');
@@ -25,38 +21,11 @@ export default function Home() {
     if (!nameText.trim()) return;
 
     const nameY = H * NAME_Y_FRACTION;
-    const fontSize = Math.round(W * 0.055);
-    ctx.font = `bold ${fontSize}px Georgia, serif`;
+    const fontSize = Math.round(W * 0.055) - 2;
+    ctx.font = `bold ${fontSize}px Verdana, sans-serif`;
     ctx.textAlign = 'center';
 
-    const textWidth = ctx.measureText(nameText).width;
-    const padX = fontSize * 1.2;
-    const padY = fontSize * 0.55;
-    const boxW = textWidth + padX * 2;
-    const boxH = fontSize + padY * 2;
-    const boxX = W / 2 - boxW / 2;
-    const boxY = nameY - fontSize - padY + fontSize * 0.15;
-
-    // White fade background
-    ctx.save();
-    ctx.globalAlpha = 0.82;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    const r = 10;
-    ctx.moveTo(boxX + r, boxY);
-    ctx.lineTo(boxX + boxW - r, boxY);
-    ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
-    ctx.lineTo(boxX + boxW, boxY + boxH - r);
-    ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
-    ctx.lineTo(boxX + r, boxY + boxH);
-    ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
-    ctx.lineTo(boxX, boxY + r);
-    ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    // Name text
+    // Name text — no background
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#1a1a1a';
     ctx.fillText(nameText, W / 2, nameY);
@@ -124,7 +93,7 @@ export default function Home() {
             border: '2px solid #ccc',
             borderRadius: 8,
             outline: 'none',
-            fontFamily: 'Georgia, serif',
+            fontFamily: 'Verdana, sans-serif',
           }}
         />
         <button
@@ -146,7 +115,6 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Hidden img to load the template */}
       <img
         ref={imgRef}
         src="/certificate-template.png"

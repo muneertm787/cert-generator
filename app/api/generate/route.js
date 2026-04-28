@@ -20,18 +20,9 @@ export async function GET(request) {
   const W = meta.width;
   const H = meta.height;
 
-  const fontSize = Math.round(W * 0.055);
+  // Font size: same formula as client, minus 2px
+  const fontSize = Math.round(W * 0.055) - 2;
   const nameY = Math.round(H * NAME_Y_FRACTION);
-
-  const estimatedCharWidth = fontSize * 0.58;
-  const textWidth = name.length * estimatedCharWidth;
-  const padX = fontSize * 1.2;
-  const padY = fontSize * 0.5;
-  const boxW = Math.round(textWidth + padX * 2);
-  const boxH = Math.round(fontSize + padY * 2);
-  const boxX = Math.round(W / 2 - boxW / 2);
-  const boxY = Math.round(nameY - fontSize - padY + fontSize * 0.1);
-  const r = 12;
 
   function escapeXml(str) {
     return str
@@ -42,9 +33,17 @@ export async function GET(request) {
       .replace(/'/g, '&apos;');
   }
 
+  // No white background — just the name text in Verdana
   const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${r}" ry="${r}" fill="white" fill-opacity="0.82"/>
-  <text x="${W / 2}" y="${nameY}" font-family="Georgia, Times New Roman, serif" font-size="${fontSize}" font-weight="bold" fill="#1a1a1a" text-anchor="middle">${escapeXml(name)}</text>
+  <text
+    x="${W / 2}"
+    y="${nameY}"
+    font-family="Verdana, sans-serif"
+    font-size="${fontSize}"
+    font-weight="bold"
+    fill="#1a1a1a"
+    text-anchor="middle"
+  >${escapeXml(name)}</text>
 </svg>`;
 
   const svgBuffer = Buffer.from(svgOverlay);
