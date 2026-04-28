@@ -22,7 +22,7 @@ export default function Home() {
 
     const nameY = H * NAME_Y_FRACTION;
     const fontSize = Math.round(W * 0.032); // 2pt less than previous (which was already -2)
-    ctx.font = `bold ${fontSize}px Consolas, monospace`;
+    ctx.font = `bold ${fontSize}px Verdana, Geneva, sans-serif`;
     ctx.textAlign = 'center';
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#1a1a1a';
@@ -91,7 +91,7 @@ export default function Home() {
             border: '2px solid #ccc',
             borderRadius: 8,
             outline: 'none',
-            fontFamily: 'Consolas, monospace',
+            fontFamily: 'Verdana, Geneva, sans-serif',
           }}
         />
         <button

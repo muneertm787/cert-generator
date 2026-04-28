@@ -36,7 +36,7 @@ export async function GET(request) {
   <text
     x="${W / 2}"
     y="${nameY}"
-    font-family="Consolas, monospace"
+    font-family="Verdana, Geneva, sans-serif"
     font-size="${fontSize}"
     font-weight="bold"
     fill="#1a1a1a"
