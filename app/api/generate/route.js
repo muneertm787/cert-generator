@@ -13,6 +13,15 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const name = (searchParams.get('name') || '').trim();
 
+  const expiryDate = process.env.EXPIRY_DATE;
+  if (expiryDate) {
+    const expiry = new Date(expiryDate);
+    expiry.setHours(23, 59, 59, 999);
+    if (new Date() > expiry) {
+      return NextResponse.json({ error: "Expired" }, { status: 403 });
+    }
+  }
+
   if (!name) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   }
