@@ -6,8 +6,8 @@ import fs from 'fs';
 const NAME_Y_FRACTION = 0.555;
 
 // Date position — bottom right "Date of Issue" area
-const DATE_X_FRACTION = 0.770; // center of date area
-const DATE_Y_FRACTION = 0.840; // just above the line
+const DATE_X_FRACTION = 0.720; // center of date area
+const DATE_Y_FRACTION = 0.860; // just above the line
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
