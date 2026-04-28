@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { track } from '@vercel/analytics';
 
 export default function Home() {
   const [name, setName] = useState('');
@@ -21,23 +22,12 @@ export default function Home() {
     if (!nameText.trim()) return;
 
     const nameY = H * NAME_Y_FRACTION;
-    const fontSize = Math.round(W * 0.042);
-
-    // Subtle shadow for readability
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
-
+    const fontSize = Math.round(W * 0.024);
     ctx.font = `bold ${fontSize}px Verdana, Geneva, sans-serif`;
     ctx.textAlign = 'center';
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#000000';
     ctx.fillText(nameText, W / 2, nameY);
-
-    // Reset shadow
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
   }
 
   useEffect(() => {
@@ -59,6 +49,9 @@ export default function Home() {
     if (!name.trim()) return;
     setDownloading(true);
     try {
+      // Track download event in Vercel Analytics
+      track('certificate_downloaded', { name: name.trim() });
+
       const res = await fetch(`/api/generate?name=${encodeURIComponent(name)}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

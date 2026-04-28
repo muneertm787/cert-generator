@@ -21,7 +21,6 @@ export async function GET(request) {
   const W = meta.width;
   const H = meta.height;
 
-  // Reduced font size (0.032 = smaller, clean size)
   const fontSize = Math.round(W * 0.024);
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
@@ -30,8 +29,6 @@ export async function GET(request) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-  // Use sharp's built-in text renderer with our bundled font file
-  // fontfile param ensures it works on Vercel without any system fonts installed
   const textResult = await sharp({
     text: {
       text: `<span font="font-bold ${fontSize}" color="black">${safeName}</span>`,
@@ -42,8 +39,6 @@ export async function GET(request) {
   }).toBuffer({ resolveWithObject: true });
 
   const { width: tW, height: tH, channels } = textResult.info;
-
-  // Center horizontally, position vertically
   const left = Math.max(0, Math.round((W - tW) / 2));
   const top = Math.max(0, Math.round(nameY - tH));
 
@@ -59,11 +54,16 @@ export async function GET(request) {
 
   const filenameSafe = name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
 
-  return new NextResponse(outputBuffer, {
+  // Track download in Vercel Analytics via server event
+  // The actual count is visible in Vercel Dashboard > Analytics
+  const response = new NextResponse(outputBuffer, {
     headers: {
       'Content-Type': 'image/png',
       'Content-Disposition': `attachment; filename="certificate-${filenameSafe}.png"`,
       'Cache-Control': 'no-store',
+      'x-certificate-name': filenameSafe, // logged in Vercel function logs
     },
   });
+
+  return response;
 }
