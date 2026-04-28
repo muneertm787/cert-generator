@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 
-const NAME_Y_FRACTION = 0.535;
+const NAME_Y_FRACTION = 0.555; // moved a little down from 0.535
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -20,8 +20,7 @@ export async function GET(request) {
   const W = meta.width;
   const H = meta.height;
 
-  // Font size: same formula as client, minus 2px
-  const fontSize = Math.round(W * 0.055) - 2;
+  const fontSize = Math.round(W * 0.055) - 4; // 2pt less than previous (-2), so -4 total
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
   function escapeXml(str) {
@@ -33,12 +32,11 @@ export async function GET(request) {
       .replace(/'/g, '&apos;');
   }
 
-  // No white background — just the name text in Verdana
   const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
   <text
     x="${W / 2}"
     y="${nameY}"
-    font-family="Verdana, sans-serif"
+    font-family="Consolas, monospace"
     font-size="${fontSize}"
     font-weight="bold"
     fill="#1a1a1a"
@@ -46,10 +44,8 @@ export async function GET(request) {
   >${escapeXml(name)}</text>
 </svg>`;
 
-  const svgBuffer = Buffer.from(svgOverlay);
-
   const outputBuffer = await sharp(templateBuffer)
-    .composite([{ input: svgBuffer, top: 0, left: 0 }])
+    .composite([{ input: Buffer.from(svgOverlay), top: 0, left: 0 }])
     .png()
     .toBuffer();
 

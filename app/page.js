@@ -8,7 +8,7 @@ export default function Home() {
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
 
-  const NAME_Y_FRACTION = 0.535;
+  const NAME_Y_FRACTION = 0.555; // moved a little down from 0.535
 
   function drawCertificate(canvas, img, nameText) {
     const ctx = canvas.getContext('2d');
@@ -21,11 +21,9 @@ export default function Home() {
     if (!nameText.trim()) return;
 
     const nameY = H * NAME_Y_FRACTION;
-    const fontSize = Math.round(W * 0.055) - 2;
-    ctx.font = `bold ${fontSize}px Verdana, sans-serif`;
+    const fontSize = Math.round(W * 0.055) - 4; // 2pt less than previous (which was already -2)
+    ctx.font = `bold ${fontSize}px Consolas, monospace`;
     ctx.textAlign = 'center';
-
-    // Name text — no background
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#1a1a1a';
     ctx.fillText(nameText, W / 2, nameY);
@@ -93,7 +91,7 @@ export default function Home() {
             border: '2px solid #ccc',
             borderRadius: 8,
             outline: 'none',
-            fontFamily: 'Verdana, sans-serif',
+            fontFamily: 'Consolas, monospace',
           }}
         />
         <button
