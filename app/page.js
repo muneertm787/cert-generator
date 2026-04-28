@@ -2,8 +2,8 @@
 import { useRef, useState, useEffect } from 'react';
 
 const NAME_Y_FRACTION = 0.555;
-const DATE_X_FRACTION = 0.868;
-const DATE_Y_FRACTION = 0.800;
+const DATE_X_FRACTION = 0.770;
+const DATE_Y_FRACTION = 0.840;
 
 function formatDate(date) {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
