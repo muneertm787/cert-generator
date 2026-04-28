@@ -5,6 +5,10 @@ import fs from 'fs';
 
 const NAME_Y_FRACTION = 0.555;
 
+// Date position — bottom right "Date of Issue" area
+const DATE_X_FRACTION = 0.868; // center of date area
+const DATE_Y_FRACTION = 0.800; // just above the line
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const name = (searchParams.get('name') || '').trim();
@@ -21,49 +25,71 @@ export async function GET(request) {
   const W = meta.width;
   const H = meta.height;
 
-  const fontSize = Math.round(W * 0.024);
+  // Format today's date: "29 April 2026"
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const nameFontSize = Math.round(W * 0.024);
+  const dateFontSize = Math.round(W * 0.018); // slightly smaller than name
+
   const nameY = Math.round(H * NAME_Y_FRACTION);
+  const dateY = Math.round(H * DATE_Y_FRACTION);
+  const dateX = Math.round(W * DATE_X_FRACTION);
 
-  const safeName = name
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  function esc(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
 
-  const textResult = await sharp({
+  // Render name text
+  const nameTextResult = await sharp({
     text: {
-      text: `<span font="font-bold ${fontSize}" color="black">${safeName}</span>`,
+      text: `<span font="font-bold ${nameFontSize}" color="black">${esc(name)}</span>`,
       rgba: true,
       dpi: 72,
       fontfile: fontPath,
     }
   }).toBuffer({ resolveWithObject: true });
 
-  const { width: tW, height: tH, channels } = textResult.info;
-  const left = Math.max(0, Math.round((W - tW) / 2));
-  const top = Math.max(0, Math.round(nameY - tH));
+  // Render date text
+  const dateTextResult = await sharp({
+    text: {
+      text: `<span font="font-bold ${dateFontSize}" color="black">${esc(dateStr)}</span>`,
+      rgba: true,
+      dpi: 72,
+      fontfile: fontPath,
+    }
+  }).toBuffer({ resolveWithObject: true });
+
+  const { width: nW, height: nH, channels: nC } = nameTextResult.info;
+  const { width: dW, height: dH, channels: dC } = dateTextResult.info;
+
+  // Center name horizontally
+  const nameLeft = Math.max(0, Math.round((W - nW) / 2));
+  const nameTop = Math.max(0, Math.round(nameY - nH));
+
+  // Center date around its X position
+  const dateLeft = Math.max(0, Math.round(dateX - dW / 2));
+  const dateTop = Math.max(0, Math.round(dateY - dH));
 
   const outputBuffer = await sharp(templateBuffer)
-    .composite([{
-      input: textResult.data,
-      raw: { width: tW, height: tH, channels },
-      left,
-      top,
-    }])
+    .composite([
+      { input: nameTextResult.data, raw: { width: nW, height: nH, channels: nC }, left: nameLeft, top: nameTop },
+      { input: dateTextResult.data, raw: { width: dW, height: dH, channels: dC }, left: dateLeft, top: dateTop },
+    ])
     .png()
     .toBuffer();
 
   const filenameSafe = name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
 
-  // Track download in Vercel Analytics via server event
-  // The actual count is visible in Vercel Dashboard > Analytics
-  const response = new NextResponse(outputBuffer, {
+  return new NextResponse(outputBuffer, {
     headers: {
       'Content-Type': 'image/png',
       'Content-Disposition': `attachment; filename="certificate-${filenameSafe}.png"`,
       'Cache-Control': 'no-store',
-      'x-certificate-name': filenameSafe, // logged in Vercel function logs
     },
   });
-
-  return response;
 }
