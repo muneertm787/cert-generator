@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 
-const NAME_Y_FRACTION = 0.555; // moved a little down from 0.535
+const NAME_Y_FRACTION = 0.555;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -20,7 +20,8 @@ export async function GET(request) {
   const W = meta.width;
   const H = meta.height;
 
-  const fontSize = Math.round(W * 0.032); // 2pt less than previous (-2), so -4 total
+  // 0.042 gives ~104px on a 2480px wide image — readable at print resolution
+  const fontSize = Math.round(W * 0.042);
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
   function escapeXml(str) {
@@ -33,14 +34,20 @@ export async function GET(request) {
   }
 
   const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#00000033"/>
+    </filter>
+  </defs>
   <text
     x="${W / 2}"
     y="${nameY}"
     font-family="Verdana, Geneva, sans-serif"
     font-size="${fontSize}"
     font-weight="bold"
-    fill="#1a1a1a"
+    fill="#000000"
     text-anchor="middle"
+    filter="url(#shadow)"
   >${escapeXml(name)}</text>
 </svg>`;
 
