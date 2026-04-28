@@ -14,10 +14,7 @@ export async function GET(request) {
   }
 
   const templatePath = path.join(process.cwd(), 'public', 'certificate-template.png');
-  const fontPath = path.join(process.cwd(), 'public', 'font-bold.ttf');
-
   const templateBuffer = fs.readFileSync(templatePath);
-  const fontBase64 = fs.readFileSync(fontPath).toString('base64');
 
   const meta = await sharp(templateBuffer).metadata();
   const W = meta.width;
@@ -26,39 +23,29 @@ export async function GET(request) {
   const fontSize = Math.round(W * 0.042);
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
-  function escapeXml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
+  // Use sharp's native Pango text rendering — works on Vercel Linux with no font install needed
+  // Liberation Sans is bundled with sharp's libvips on Vercel
+  const textResult = await sharp({
+    text: {
+      text: `<span font="Liberation Sans Bold ${fontSize}" color="black">${name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`,
+      rgba: true,
+      dpi: 72,
+    }
+  }).toBuffer({ resolveWithObject: true });
 
-  // Embed font as base64 so it works on any server (Vercel Linux) without installed fonts
-  const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      @font-face {
-        font-family: 'CertFont';
-        src: url('data:font/truetype;base64,${fontBase64}') format('truetype');
-        font-weight: bold;
-      }
-    </style>
-  </defs>
-  <text
-    x="${W / 2}"
-    y="${nameY}"
-    font-family="CertFont, Arial, sans-serif"
-    font-size="${fontSize}"
-    font-weight="bold"
-    fill="#000000"
-    text-anchor="middle"
-  >${escapeXml(name)}</text>
-</svg>`;
+  const { width: tW, height: tH, channels } = textResult.info;
+
+  // Center horizontally, align bottom of text to nameY
+  const left = Math.max(0, Math.round((W - tW) / 2));
+  const top = Math.max(0, Math.round(nameY - tH));
 
   const outputBuffer = await sharp(templateBuffer)
-    .composite([{ input: Buffer.from(svgOverlay), top: 0, left: 0 }])
+    .composite([{
+      input: textResult.data,
+      raw: { width: tW, height: tH, channels },
+      left,
+      top,
+    }])
     .png()
     .toBuffer();
 
