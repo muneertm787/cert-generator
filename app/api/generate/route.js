@@ -1,73 +1,66 @@
 import { NextResponse } from 'next/server';
-import { createCanvas, loadImage } from 'canvas';
+import sharp from 'sharp';
 import path from 'path';
+import fs from 'fs';
 
-// Y position as fraction of image height — 1 inch lower than original
 const NAME_Y_FRACTION = 0.535;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const name = searchParams.get('name') || '';
+  const name = (searchParams.get('name') || '').trim();
 
-  if (!name.trim()) {
+  if (!name) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   }
 
   const templatePath = path.join(process.cwd(), 'public', 'certificate-template.png');
-  const img = await loadImage(templatePath);
+  const templateBuffer = fs.readFileSync(templatePath);
 
-  const W = img.width;
-  const H = img.height;
+  const meta = await sharp(templateBuffer).metadata();
+  const W = meta.width;
+  const H = meta.height;
 
-  const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext('2d');
-
-  // Draw background template
-  ctx.drawImage(img, 0, 0, W, H);
-
-  const nameY = H * NAME_Y_FRACTION;
   const fontSize = Math.round(W * 0.055);
-  ctx.font = `bold ${fontSize}px Georgia`;
-  ctx.textAlign = 'center';
+  const nameY = Math.round(H * NAME_Y_FRACTION);
 
-  const textWidth = ctx.measureText(name).width;
+  const estimatedCharWidth = fontSize * 0.58;
+  const textWidth = name.length * estimatedCharWidth;
   const padX = fontSize * 1.2;
-  const padY = fontSize * 0.55;
-  const boxW = textWidth + padX * 2;
-  const boxH = fontSize + padY * 2;
-  const boxX = W / 2 - boxW / 2;
-  const boxY = nameY - fontSize - padY + fontSize * 0.15;
+  const padY = fontSize * 0.5;
+  const boxW = Math.round(textWidth + padX * 2);
+  const boxH = Math.round(fontSize + padY * 2);
+  const boxX = Math.round(W / 2 - boxW / 2);
+  const boxY = Math.round(nameY - fontSize - padY + fontSize * 0.1);
+  const r = 12;
 
-  // White fade (semi-transparent) background behind name
-  ctx.save();
-  ctx.globalAlpha = 0.82;
-  ctx.fillStyle = '#ffffff';
-  const r = 14;
-  ctx.beginPath();
-  ctx.moveTo(boxX + r, boxY);
-  ctx.lineTo(boxX + boxW - r, boxY);
-  ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
-  ctx.lineTo(boxX + boxW, boxY + boxH - r);
-  ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
-  ctx.lineTo(boxX + r, boxY + boxH);
-  ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
-  ctx.lineTo(boxX, boxY + r);
-  ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
+  function escapeXml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
 
-  // Name text
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = '#1a1a1a';
-  ctx.fillText(name, W / 2, nameY);
+  const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="${r}" ry="${r}" fill="white" fill-opacity="0.82"/>
+  <text x="${W / 2}" y="${nameY}" font-family="Georgia, Times New Roman, serif" font-size="${fontSize}" font-weight="bold" fill="#1a1a1a" text-anchor="middle">${escapeXml(name)}</text>
+</svg>`;
 
-  const buffer = canvas.toBuffer('image/png');
+  const svgBuffer = Buffer.from(svgOverlay);
 
-  return new NextResponse(buffer, {
+  const outputBuffer = await sharp(templateBuffer)
+    .composite([{ input: svgBuffer, top: 0, left: 0 }])
+    .png()
+    .toBuffer();
+
+  const safeName = name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
+
+  return new NextResponse(outputBuffer, {
     headers: {
       'Content-Type': 'image/png',
-      'Content-Disposition': `attachment; filename="certificate-${name.replace(/\s+/g, '-')}.png"`,
+      'Content-Disposition': `attachment; filename="certificate-${safeName}.png"`,
+      'Cache-Control': 'no-store',
     },
   });
 }
