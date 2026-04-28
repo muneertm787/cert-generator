@@ -14,28 +14,36 @@ export async function GET(request) {
   }
 
   const templatePath = path.join(process.cwd(), 'public', 'certificate-template.png');
-  const templateBuffer = fs.readFileSync(templatePath);
+  const fontPath = path.join(process.cwd(), 'public', 'font-bold.ttf');
 
+  const templateBuffer = fs.readFileSync(templatePath);
   const meta = await sharp(templateBuffer).metadata();
   const W = meta.width;
   const H = meta.height;
 
-  const fontSize = Math.round(W * 0.042);
+  // Reduced font size (0.032 = smaller, clean size)
+  const fontSize = Math.round(W * 0.032);
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
-  // Use sharp's native Pango text rendering — works on Vercel Linux with no font install needed
-  // Liberation Sans is bundled with sharp's libvips on Vercel
+  const safeName = name
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Use sharp's built-in text renderer with our bundled font file
+  // fontfile param ensures it works on Vercel without any system fonts installed
   const textResult = await sharp({
     text: {
-      text: `<span font="Liberation Sans Bold ${fontSize}" color="black">${name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`,
+      text: `<span font="font-bold ${fontSize}" color="black">${safeName}</span>`,
       rgba: true,
       dpi: 72,
+      fontfile: fontPath,
     }
   }).toBuffer({ resolveWithObject: true });
 
   const { width: tW, height: tH, channels } = textResult.info;
 
-  // Center horizontally, align bottom of text to nameY
+  // Center horizontally, position vertically
   const left = Math.max(0, Math.round((W - tW) / 2));
   const top = Math.max(0, Math.round(nameY - tH));
 
@@ -49,12 +57,12 @@ export async function GET(request) {
     .png()
     .toBuffer();
 
-  const safeName = name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
+  const filenameSafe = name.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-');
 
   return new NextResponse(outputBuffer, {
     headers: {
       'Content-Type': 'image/png',
-      'Content-Disposition': `attachment; filename="certificate-${safeName}.png"`,
+      'Content-Disposition': `attachment; filename="certificate-${filenameSafe}.png"`,
       'Cache-Control': 'no-store',
     },
   });
