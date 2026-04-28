@@ -14,13 +14,15 @@ export async function GET(request) {
   }
 
   const templatePath = path.join(process.cwd(), 'public', 'certificate-template.png');
+  const fontPath = path.join(process.cwd(), 'public', 'font-bold.ttf');
+
   const templateBuffer = fs.readFileSync(templatePath);
+  const fontBase64 = fs.readFileSync(fontPath).toString('base64');
 
   const meta = await sharp(templateBuffer).metadata();
   const W = meta.width;
   const H = meta.height;
 
-  // 0.042 gives ~104px on a 2480px wide image — readable at print resolution
   const fontSize = Math.round(W * 0.042);
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
@@ -33,21 +35,25 @@ export async function GET(request) {
       .replace(/'/g, '&apos;');
   }
 
+  // Embed font as base64 so it works on any server (Vercel Linux) without installed fonts
   const svgOverlay = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <filter id="shadow">
-      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#00000033"/>
-    </filter>
+    <style>
+      @font-face {
+        font-family: 'CertFont';
+        src: url('data:font/truetype;base64,${fontBase64}') format('truetype');
+        font-weight: bold;
+      }
+    </style>
   </defs>
   <text
     x="${W / 2}"
     y="${nameY}"
-    font-family="Verdana, Geneva, sans-serif"
+    font-family="CertFont, Arial, sans-serif"
     font-size="${fontSize}"
     font-weight="bold"
     fill="#000000"
     text-anchor="middle"
-    filter="url(#shadow)"
   >${escapeXml(name)}</text>
 </svg>`;
 
