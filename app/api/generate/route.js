@@ -22,7 +22,7 @@ export async function GET(request) {
   const H = meta.height;
 
   // Reduced font size (0.032 = smaller, clean size)
-  const fontSize = Math.round(W * 0.032);
+  const fontSize = Math.round(W * 0.024);
   const nameY = Math.round(H * NAME_Y_FRACTION);
 
   const safeName = name
