@@ -1,231 +1,173 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+
+import { useRef, useState, useEffect } from 'react';
 
 export default function Home() {
   const [name, setName] = useState('');
-  const [previewName, setPreviewName] = useState('');
-  const [imageLoaded, setImageLoaded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
 
-  const drawCertificate = (nameText) => {
-    const canvas = canvasRef.current;
-    const img = imgRef.current;
-    if (!canvas || !img || !imageLoaded) return;
+  // Positions (as fraction of image dimensions)
+  // Original name Y was roughly 41% of height.
+  // 1 inch at 96dpi = 96px on a ~794px tall preview canvas → ~12% shift
+  // We push it down by adding ~0.12 to the y fraction.
+  const NAME_Y_FRACTION = 0.535; // adjusted ~1 inch lower than original ~0.415
 
+  function drawCertificate(canvas, img, nameText) {
     const ctx = canvas.getContext('2d');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
+    const W = canvas.width;
+    const H = canvas.height;
 
-    ctx.drawImage(img, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, H);
 
-    if (!nameText) return;
+    if (!nameText.trim()) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
-    const nameY = Math.round(height * 0.418);
-    const nameCenterX = Math.round(width * 0.5);
-
-    // Erase original name area
-    ctx.fillStyle = '#f5f0e8';
-    ctx.fillRect(nameCenterX - 530, nameY - 40, 1060, 58);
-
-    // Draw new name in matching italic style
-    let fontSize = Math.round(height * 0.052);
-    const maxWidth = width * 0.64;
-    ctx.font = `italic ${fontSize}px Georgia, "Times New Roman", serif`;
-    while (ctx.measureText(nameText).width > maxWidth && fontSize > 20) {
-      fontSize -= 2;
-      ctx.font = `italic ${fontSize}px Georgia, "Times New Roman", serif`;
-    }
-
-    ctx.fillStyle = '#1a1a2e';
+    const nameY = H * NAME_Y_FRACTION;
+    const fontSize = Math.round(W * 0.055);
+    ctx.font = `bold ${fontSize}px Georgia, serif`;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(nameText, nameCenterX, nameY);
-  };
+
+    const textWidth = ctx.measureText(nameText).width;
+    const padX = fontSize * 1.2;
+    const padY = fontSize * 0.55;
+    const boxW = textWidth + padX * 2;
+    const boxH = fontSize + padY * 2;
+    const boxX = W / 2 - boxW / 2;
+    const boxY = nameY - fontSize - padY + fontSize * 0.15;
+
+    // White fade background
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    const r = 10;
+    ctx.moveTo(boxX + r, boxY);
+    ctx.lineTo(boxX + boxW - r, boxY);
+    ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
+    ctx.lineTo(boxX + boxW, boxY + boxH - r);
+    ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
+    ctx.lineTo(boxX + r, boxY + boxH);
+    ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
+    ctx.lineTo(boxX, boxY + r);
+    ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Name text
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillText(nameText, W / 2, nameY);
+  }
 
   useEffect(() => {
-    if (imageLoaded) drawCertificate(previewName);
-  }, [previewName, imageLoaded]);
-
-  const handlePreview = () => {
-    if (!name.trim()) return;
-    setPreviewName(name.trim());
-  };
-
-  const handleDownload = () => {
     const canvas = canvasRef.current;
-    if (!canvas || !imageLoaded) return;
-    const finalName = name.trim() || previewName;
-    if (!finalName) return;
+    const img = imgRef.current;
+    if (!canvas || !img || !img.complete) return;
+    drawCertificate(canvas, img, name);
+  }, [name]);
 
-    drawCertificate(finalName);
+  function handleImageLoad() {
+    const canvas = canvasRef.current;
+    const img = imgRef.current;
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    drawCertificate(canvas, img, name);
+  }
+
+  async function handleDownload() {
+    if (!name.trim()) return;
     setDownloading(true);
-    setTimeout(() => {
-      const link = document.createElement('a');
-      link.download = `certificate-${finalName.replace(/\s+/g, '-')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+    try {
+      const res = await fetch(`/api/generate?name=${encodeURIComponent(name)}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificate-${name.replace(/\s+/g, '-')}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
       setDownloading(false);
-    }, 100);
-  };
+    }
+  }
 
   return (
-    <main className="main">
-      <div className="header">
-        <div className="logo">🏅</div>
-        <h1>Certificate Generator</h1>
-        <p>Ghaith Al Emarat Volunteering Team — Proud of UAE</p>
-      </div>
+    <main style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: '32px 16px',
+      fontFamily: 'Georgia, serif',
+    }}>
+      <h1 style={{ color: '#b22222', fontSize: '1.6rem', marginBottom: 8, textAlign: 'center' }}>
+        Certificate Generator
+      </h1>
+      <p style={{ color: '#555', marginBottom: 24, textAlign: 'center', fontSize: '0.95rem' }}>
+        Ghaith Al Emarat Volunteering Team
+      </p>
 
-      <div className="card">
-        <label htmlFor="nameInput">Recipient Name</label>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 28, width: '100%', maxWidth: 560 }}>
         <input
-          id="nameInput"
           type="text"
+          placeholder="Enter recipient name…"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handlePreview()}
-          placeholder="e.g. Ahmed Mohammed Al Rashid"
-          className="name-input"
-          maxLength={80}
+          onChange={e => setName(e.target.value)}
+          style={{
+            flex: 1,
+            padding: '12px 16px',
+            fontSize: '1rem',
+            border: '2px solid #ccc',
+            borderRadius: 8,
+            outline: 'none',
+            fontFamily: 'Georgia, serif',
+          }}
         />
-        <div className="btn-row">
-          <button onClick={handlePreview} className="btn btn-preview" disabled={!name.trim()}>
-            👁 Preview
-          </button>
-          <button
-            onClick={handleDownload}
-            className="btn btn-download"
-            disabled={downloading || (!previewName && !name.trim())}
-          >
-            {downloading ? '⏳ Saving…' : '⬇ Download PNG'}
-          </button>
-        </div>
+        <button
+          onClick={handleDownload}
+          disabled={!name.trim() || downloading}
+          style={{
+            padding: '12px 22px',
+            background: name.trim() ? '#b22222' : '#ccc',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: '0.95rem',
+            cursor: name.trim() ? 'pointer' : 'not-allowed',
+            fontWeight: 'bold',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {downloading ? 'Generating…' : '⬇ Download'}
+        </button>
       </div>
 
-      <div className="preview-section">
-        <h2>Certificate Preview</h2>
-        <div className="canvas-wrapper">
-          <img
-            ref={imgRef}
-            src="/certificate-template.png"
-            alt="template"
-            style={{ display: 'none' }}
-            onLoad={() => setImageLoaded(true)}
-          />
-          <canvas ref={canvasRef} className="cert-canvas" />
-          {!imageLoaded && (
-            <div className="overlay">Loading template…</div>
-          )}
-          {imageLoaded && !previewName && (
-            <div className="overlay">Enter a name above and click Preview</div>
-          )}
-        </div>
-        {previewName && (
-          <p className="preview-label">Showing: <strong>{previewName}</strong></p>
-        )}
-      </div>
+      {/* Hidden img to load the template */}
+      <img
+        ref={imgRef}
+        src="/certificate-template.png"
+        alt=""
+        style={{ display: 'none' }}
+        onLoad={handleImageLoad}
+      />
 
-      <style jsx>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        .main {
-          min-height: 100vh;
-          background: linear-gradient(135deg, #0a1628 0%, #1a2f4a 40%, #0d2035 100%);
-          padding: 40px 20px 60px;
-          font-family: 'Segoe UI', system-ui, sans-serif;
-          color: #fff;
-        }
-        .header { text-align: center; margin-bottom: 36px; }
-        .logo { font-size: 48px; margin-bottom: 12px; }
-        .header h1 {
-          font-size: clamp(1.8rem, 4vw, 2.8rem);
-          font-weight: 700;
-          background: linear-gradient(90deg, #e8c96d, #f5e4a0, #c8963c);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          margin-bottom: 8px;
-        }
-        .header p { color: #8aacc8; font-size: 1rem; }
-        .card {
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.12);
-          border-radius: 16px;
-          padding: 32px;
-          max-width: 680px;
-          margin: 0 auto 40px;
-        }
-        label {
-          display: block;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: #a8c8e8;
-          margin-bottom: 10px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        .name-input {
-          width: 100%;
-          background: rgba(255,255,255,0.08);
-          border: 1.5px solid rgba(255,255,255,0.2);
-          border-radius: 10px;
-          padding: 14px 18px;
-          font-size: 1.1rem;
-          color: #fff;
-          outline: none;
-          transition: border-color 0.2s;
-          margin-bottom: 16px;
-        }
-        .name-input::placeholder { color: rgba(255,255,255,0.3); }
-        .name-input:focus { border-color: #e8c96d; }
-        .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
-        .btn {
-          flex: 1; min-width: 140px;
-          padding: 14px 24px;
-          border: none; border-radius: 10px;
-          font-size: 1rem; font-weight: 600;
-          cursor: pointer; transition: all 0.2s;
-        }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-preview {
-          background: rgba(255,255,255,0.1);
-          border: 1.5px solid rgba(255,255,255,0.25);
-          color: #fff;
-        }
-        .btn-preview:hover:not(:disabled) { background: rgba(255,255,255,0.18); }
-        .btn-download {
-          background: linear-gradient(135deg, #c8963c, #e8c96d);
-          color: #1a1000;
-        }
-        .btn-download:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(200,150,60,0.4);
-        }
-        .preview-section { max-width: 960px; margin: 0 auto; text-align: center; }
-        .preview-section h2 {
-          font-size: 1.1rem; font-weight: 600;
-          color: #a8c8e8; text-transform: uppercase;
-          letter-spacing: 2px; margin-bottom: 20px;
-        }
-        .canvas-wrapper {
-          position: relative;
-          background: rgba(0,0,0,0.3);
-          border-radius: 12px; overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.1);
-          min-height: 200px;
-        }
-        .cert-canvas { width: 100%; height: auto; display: block; }
-        .overlay {
-          position: absolute; inset: 0;
-          display: flex; align-items: center; justify-content: center;
-          color: rgba(255,255,255,0.4); font-size: 1rem;
-        }
-        .preview-label { margin-top: 14px; font-size: 0.95rem; color: #8aacc8; }
-        .preview-label strong { color: #e8c96d; }
-      `}</style>
+      <div style={{
+        width: '100%',
+        maxWidth: 860,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+        borderRadius: 12,
+        overflow: 'hidden',
+        background: '#fff',
+      }}>
+        <canvas
+          ref={canvasRef}
+          style={{ width: '100%', height: 'auto', display: 'block' }}
+        />
+      </div>
     </main>
   );
 }

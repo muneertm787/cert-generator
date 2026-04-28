@@ -1,6 +1,6 @@
 export const metadata = {
   title: 'Certificate Generator — Ghaith Al Emarat',
-  description: 'Generate personalized volunteering certificates for Ghaith Al Emarat Volunteering Team',
+  description: 'Generate personalized Proud of UAE certificates',
 };
 
 export default function RootLayout({ children }) {
